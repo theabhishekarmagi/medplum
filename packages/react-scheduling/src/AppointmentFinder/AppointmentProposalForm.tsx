@@ -819,10 +819,18 @@ export function AppointmentProposalForm(props: AppointmentProposalFormProps): JS
           />
         )}
 
-        {writeError !== undefined && <Alert color="red">{normalizeErrorString(writeError)}</Alert>}
-        <Button fullWidth disabled={!chosen || written || detailsOutstanding} loading={writing} onClick={handleSubmit}>
-          {getSubmitLabel(mode, effectiveOccurrenceCount)}
-        </Button>
+        <Stack gap="sm" className={classes.controls}>
+          <Divider />
+          {writeError !== undefined && <Alert color="red">{normalizeErrorString(writeError)}</Alert>}
+          <Button
+            fullWidth
+            disabled={!chosen || written || detailsOutstanding}
+            loading={writing}
+            onClick={handleSubmit}
+          >
+            {getSubmitLabel(mode, effectiveOccurrenceCount)}
+          </Button>
+        </Stack>
       </Stack>
 
       {searching && (
