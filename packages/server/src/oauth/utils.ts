@@ -1620,9 +1620,27 @@ async function tryExternalAuthLogin(
   return { login, project, membership };
 }
 
+const externalBearerIdpFields = ['issuer', 'jwksUrl', 'audience'];
+
+/**
+ * Returns true if the identity provider is configured only to verify external bearer tokens:
+ * `issuer`, `jwksUrl` and `audience` are all set, and no other settings are present.
+ * @param idp - The client application's identity provider.
+ * @returns True if the identity provider can authenticate external bearer tokens as its client.
+ */
+function isExternalBearerIdentityProvider(idp: IdentityProvider | undefined): boolean {
+  return (
+    !!idp?.issuer &&
+    !!idp.jwksUrl &&
+    !!idp.audience &&
+    Object.keys(idp).every((key) => externalBearerIdpFields.includes(key))
+  );
+}
+
 /**
  * Resolves an identity-less external bearer token to the client application configured for its issuer.
  * The project-scoped URL supplies the tenant, while the issuer identifies the client within that project.
+ * Only clients whose identity provider is dedicated to bearer token verification are considered.
  * Ambiguous configurations fail closed.
  *
  * @param projectId - Project ID from the request URL.
@@ -1640,16 +1658,22 @@ async function getExternalBearerClient(
       { code: '_project', operator: Operator.EQUALS, value: projectId },
       { code: 'identity-provider-issuer', operator: Operator.EXACT, value: escapeSearchValue(issuer) },
     ],
-    count: 2,
   });
-  if (clients.length !== 1) {
-    if (clients.length > 1) {
+  const bearerClients = clients.filter((client) => isExternalBearerIdentityProvider(client.identityProvider));
+  if (bearerClients.length !== 1) {
+    if (bearerClients.length > 1) {
       getLogger().warn('Multiple ClientApplications found for external auth issuer in project', { issuer, projectId });
+    } else if (clients.length > 0) {
+      getLogger().warn('External auth issuer matched ClientApplication not configured for bearer tokens', {
+        issuer,
+        projectId,
+        clientIds: clients.map((client) => client.id),
+      });
     }
     return undefined;
   }
 
-  return clients[0];
+  return bearerClients[0];
 }
 
 /**
