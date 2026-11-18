@@ -37,7 +37,7 @@ import type { Appointment, Extension, HealthcareService, Location, Patient, Refe
 import { CalendarDateInput, ResourceName } from '@medplum/react';
 import { useMedplum } from '@medplum/react-hooks';
 import { IconAlertCircle, IconCalendarSearch } from '@tabler/icons-react';
-import type { JSX, RefObject } from 'react';
+import type { JSX, ReactNode, RefObject } from 'react';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SchedulingActorValue } from '../actors';
 import { getActorType, getActorTypeLabel } from '../actors';
@@ -222,6 +222,11 @@ export interface AppointmentProposalFormProps {
    * to six. Only offered when booking: `$reschedule` moves a single visit.
    */
   readonly allowRecurring?: boolean;
+  /**
+   * Controls of the host's own, such as the way back to where the form was opened from.
+   * Listed under the submit button.
+   */
+  readonly children?: ReactNode;
 }
 
 /** What `onBook` is told about the proposal it was handed. */
@@ -267,6 +272,7 @@ export function AppointmentProposalForm(props: AppointmentProposalFormProps): JS
     canBypassSchedulingRules,
     appointmentExtensions,
     allowRecurring,
+    children,
   } = props;
 
   const [serviceFacility, setServiceFacility] = useState<Reference<Location> | WithId<Location> | undefined>(
@@ -830,6 +836,7 @@ export function AppointmentProposalForm(props: AppointmentProposalFormProps): JS
           >
             {getSubmitLabel(mode, effectiveOccurrenceCount)}
           </Button>
+          {children}
         </Stack>
       </Stack>
 
