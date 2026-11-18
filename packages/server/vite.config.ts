@@ -71,6 +71,9 @@ export default defineConfig({
     // long-running seed.test.ts beforeAll (migrations, index config, vacuum).
     testTimeout: 30_000,
     hookTimeout: 400_000,
+    // Vitest 5 clears mock calls before each test by default; many tests spy in beforeAll
+    // and assert on those calls later.
+    clearMocks: false,
     sequence: {
       sequencer: CustomSequencer,
     },
