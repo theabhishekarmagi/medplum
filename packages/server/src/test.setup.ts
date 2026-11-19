@@ -49,7 +49,7 @@ setDefaultResultOrder('ipv4first');
 
 Error.stackTraceLimit = 20;
 
-// Many integration tests call initApp/shutdownApp in quick succession (e.g. resource-cap.test.ts
+// Many integration tests call initApp/shutdownApp in quick succession (e.g. resource-cap.int.test.ts
 // does both in beforeEach/afterEach). Without serialization, shutdown can overlap the next init,
 // leaving the DB pool or Redis in a bad state and causing intermittent HTTP failures in later tests.
 const { withAppLifecycle } = vi.hoisted(() => {

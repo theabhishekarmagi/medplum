@@ -13,6 +13,6 @@ export default defineConfig({
     name: '@medplum/server',
     projects: undefined,
     globalSetup: [], // Skip global setup until DB is seeded
-    include: ['src/seed.test.ts'],
+    include: ['src/seed.int.test.ts'],
   },
 });

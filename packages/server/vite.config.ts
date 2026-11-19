@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import type { TestSpecification } from 'vitest/node';
 import { BaseSequencer } from 'vitest/node';
 import packageJson from './package.json' with { type: 'json' };
@@ -12,16 +12,16 @@ const serverDir = dirname(fileURLToPath(import.meta.url));
 // These files book Slots in SERIALIZABLE transactions, which abort with 40001 when another file
 // books at the same time. They run after everything else, one file at a time.
 const serialTestFiles = [
-  'src/fhir/operations/book.recurring.test.ts',
-  'src/fhir/operations/book.test.ts',
-  'src/fhir/operations/cancel.test.ts',
-  'src/fhir/operations/confirm.test.ts',
-  'src/fhir/operations/hold.test.ts',
-  'src/fhir/operations/reschedule.test.ts',
+  'src/fhir/operations/book.recurring.int.test.ts',
+  'src/fhir/operations/book.int.test.ts',
+  'src/fhir/operations/cancel.int.test.ts',
+  'src/fhir/operations/confirm.int.test.ts',
+  'src/fhir/operations/hold.int.test.ts',
+  'src/fhir/operations/reschedule.int.test.ts',
 ];
 
 /**
- * Matches the Jest custom sequencer: run seed.test.ts first, then alphabetical order.
+ * Matches the Jest custom sequencer: run seed.int.test.ts first, then alphabetical order.
  * Vitest's default sequencer orders by failure history and file size, which breaks test isolation.
  */
 class CustomSequencer extends BaseSequencer {
@@ -29,10 +29,10 @@ class CustomSequencer extends BaseSequencer {
     return [...files].sort((a, b) => {
       const aPath = a.moduleId;
       const bPath = b.moduleId;
-      if (aPath.endsWith('seed.test.ts')) {
+      if (aPath.endsWith('seed.int.test.ts')) {
         return -1;
       }
-      if (bPath.endsWith('seed.test.ts')) {
+      if (bPath.endsWith('seed.int.test.ts')) {
         return 1;
       }
       return aPath.localeCompare(bPath);
@@ -63,31 +63,45 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./src/test.setup.ts'],
-    globalSetup: ['./src/test.global-setup.ts'],
     // Jest used a single `testTimeout` for both tests and lifecycle hooks (beforeAll, afterAll, etc.).
     // Vitest splits these into `testTimeout` and `hookTimeout`, so both must be set explicitly.
     // Jest config: testTimeout 30_000; `test:seed` overrode it to 400_000 for tests and hooks alike.
     // `test:seed` still passes `--testTimeout=400000` for the test body; hookTimeout here covers the
-    // long-running seed.test.ts beforeAll (migrations, index config, vacuum).
+    // long-running seed.int.test.ts beforeAll (migrations, index config, vacuum).
     testTimeout: 30_000,
     hookTimeout: 400_000,
-    sequence: {
-      sequencer: CustomSequencer,
-    },
     projects: [
       {
+        // Pure unit tests: no Postgres/Redis, so no global setup, and threads for faster startup.
+        extends: true,
+        test: {
+          name: '@medplum/server-unit',
+          pool: 'threads',
+          include: ['src/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'src/**/*.int.test.ts'],
+        },
+      },
+      {
+        // Integration tests that need Postgres/Redis.
         extends: true,
         test: {
           name: '@medplum/server',
-          include: ['src/**/*.test.ts'],
-          // seed.test.ts runs on its own first, via vite.seed.config.ts
-          exclude: ['src/seed.test.ts', ...serialTestFiles],
+          pool: 'forks',
+          globalSetup: ['./src/test.global-setup.ts'],
+          include: ['src/**/*.int.test.ts'],
+          // seed.int.test.ts runs on its own first, via vite.seed.config.ts
+          exclude: [...configDefaults.exclude, 'src/seed.int.test.ts', ...serialTestFiles],
+          sequence: {
+            sequencer: CustomSequencer,
+          },
         },
       },
       {
         extends: true,
         test: {
           name: '@medplum/server-serial',
+          pool: 'forks',
+          globalSetup: ['./src/test.global-setup.ts'],
           include: serialTestFiles,
           maxWorkers: 1,
           sequence: { groupOrder: 1 },
